@@ -1,0 +1,192 @@
+#######################################################
+###############    cylindricalPET    ##################
+#######################################################
+
+#=====================================================
+# GEOMETRY
+#=====================================================
+/gate/geometry/setMaterialDatabase MaterialDatabase.db
+
+# WORLD
+/gate/world/geometry/setXLength 40. cm
+/gate/world/geometry/setYLength 40. cm
+/gate/world/geometry/setZLength 40. cm
+/gate/world/setMaterial Air
+
+# CYLINDRICAL PET
+/gate/world/daughters/name cylindricalPET
+/gate/world/daughters/insert cylinder
+/gate/cylindricalPET/geometry/setRmax    100 mm
+/gate/cylindricalPET/geometry/setRmin     86 mm
+/gate/cylindricalPET/geometry/setHeight   18 mm
+/gate/cylindricalPET/setMaterial Water
+/gate/cylindricalPET/vis/forceWireframe
+/gate/cylindricalPET/vis/setColor gray
+
+# R S E C T O R : box1
+/gate/cylindricalPET/daughters/name box1
+/gate/cylindricalPET/daughters/insert box
+/gate/box1/placement/setTranslation 91. 0. 0. mm
+/gate/box1/geometry/setXLength 10. mm
+/gate/box1/geometry/setYLength 17.75 mm
+/gate/box1/geometry/setZLength 17.75 mm
+/gate/box1/setMaterial Water
+/gate/box1/vis/forceWireframe
+/gate/box1/vis/setColor yellow
+
+# C R Y S T A L : box2
+/gate/box1/daughters/name   box2
+/gate/box1/daughters/insert box
+/gate/box2/geometry/setXLength 10. mm
+/gate/box2/geometry/setYLength 2. mm
+/gate/box2/geometry/setZLength 2. mm
+/gate/box2/setMaterial Water
+/gate/box2/vis/forceWireframe
+/gate/box2/vis/setColor        red       #magenta
+
+# L A Y E R : LSO 
+/gate/box2/daughters/name LSO
+/gate/box2/daughters/insert box
+/gate/LSO/geometry/setXLength 10. mm
+/gate/LSO/geometry/setYLength 2.2 mm
+/gate/LSO/geometry/setZLength 2.2 mm
+/gate/LSO/placement/setTranslation 0 0 0 mm
+/gate/LSO/setMaterial LSO                # (lutetium (Lu), silicon (Si), oxygen (O))    #NaITl
+/gate/LSO/vis/forceSolid
+/gate/LSO/vis/setColor  yellow 
+
+# P H A N T O M
+/gate/world/daughters/name my_phantom
+/gate/world/daughters/insert cylinder
+/gate/my_phantom/geometry/setRmax 10.5 mm
+/gate/my_phantom/geometry/setRmin 0. mm
+/gate/my_phantom/geometry/setHeight 30. mm
+/gate/my_phantom/setMaterial Water
+/gate/my_phantom/vis/forceSolid
+/gate/my_phantom/vis/setColor grey
+
+# R E P E A T C R Y S T A L : box2 : box de detecteur 
+/gate/box2/repeaters/insert cubicArray
+/gate/box2/cubicArray/setRepeatNumberX 1
+/gate/box2/cubicArray/setRepeatNumberY 8
+/gate/box2/cubicArray/setRepeatNumberZ 8
+/gate/box2/cubicArray/setRepeatVector  0. 2.25 2.25 mm
+
+# R E P E A T BOX 1
+/gate/box1/repeaters/insert ring
+/gate/box1/ring/setRepeatNumber 30
+
+# REPEAT Cylider (repeat red ring)
+/gate/cylindricalPET/repeaters/insert linear
+/gate/cylindricalPET/linear/setRepeatNumber 4
+/gate/cylindricalPET/linear/setRepeatVector 0. 0. 18 mm
+
+# A T T A C H S Y S T E M
+/gate/systems/cylindricalPET/rsector/attach box1 
+/gate/systems/cylindricalPET/crystal/attach box2
+/gate/systems/cylindricalPET/layer0/attach LSO  
+
+# A T T A C H L A Y E R SD
+/gate/LSO/attachCrystalSD
+/gate/my_phantom/attachPhantomSD
+
+
+#=====================================================
+# PHYSICS
+#=====================================================
+/gate/physics/addPhysicsList emstandard_opt3         #G4ElectroNuclearCrossSection is used at all energies for e+ and e−,
+
+#=====================================================
+# DETECTORS
+#=====================================================
+/gate/actor/addActor                  DoseActor  det 
+/gate/actor/det/attachTo    	      LSO        #LSO set as a sensible detector 
+/gate/actor/det/stepHitType           random     # partical interaction
+              
+#----Dose measurement (DoseActor)---[Actor Name] : det-------------------------------------
+
+/gate/actor/det/enableEdep             true
+/gate/actor/det/enableUncertaintyEdep  true # Energy deposited 
+/gate/actor/det/enableSquaredEdep      true
+/gate/actor/det/enableDose             true
+/gate/actor/det/enableUncertaintyDose  true
+/gate/actor/det/enableDose             true
+/gate/actor/det/enableUncertaintyDose  true
+/gate/actor/det/enableSquaredDose      true
+/gate/actor/det/enableNumberOfHits     true
+/gate/actor/det/saveEveryNEvents   1               # save the output every N events 
+/gate/actor/det/saveEveryNSeconds  2               # save the output every N seconds 
+/gate/actor/det/save   out1.txt 
+
+
+#----Simulation statistic  [Actor Name] : stat---------------------------------------------
+# detector statistique  :This actor counts the number of steps, tracks, events, runs in the simulation.
+/gate/actor/addActor SimulationStatisticActor stat 
+/gate/actor/stat/attachTo    	      LSO       #LSO set as a sensible detector 
+/gate/actor/stat/save              stat.txt     # The particular behaviour 
+
+#---Electromagnetic (EM) properties--------------------------------------------------------
+/gate/actor/addActor SimulationStatisticActor     EM
+/gate/actor/EM/save  EM.txt
+
+
+#=====================================================
+# INITIALISATION
+#=====================================================
+/gate/run/initialize
+
+#=====================================================
+# SOURCES
+#=====================================================
+/gate/source/addSource bgam gps
+# POSITION--------------------------------------------
+/gate/source/bgam/gps/centre 0. 0. 0. cm  
+# PARTICLE--------------------------------------------
+/gate/source/bgam/gps/particle gamma      
+/gate/source/bgam/setType backtoback              #where two annihilation photons are generated at 180 degrees.
+/gate/source/bgam/gps/energytype Mono
+/gate/source/bgam/gps/monoenergy 0.511 MeV
+ # TYPE = Volume or Surface---------------------------
+/gate/source/bgam/gps/type Volume     
+ # SHAPE = Sphere or Cylinder-------------------------   
+/gate/source/bgam/gps/shape Cylinder     
+/gate/source/bgam/gps/radius 0.5 mm
+/gate/source/bgam/gps/halfz 25 mm
+# SET THE ANGULAR DISTRIBUTION OF EMISSION------------
+/gate/source/bgam/gps/angtype iso                 #In this case, all particles have the same polar angle (theta) of 90 degrees. 
+# SET MIN AND MAX EMISSION ANGLES---------------------
+/gate/source/bgam/gps/mintheta 0. deg
+/gate/source/bgam/gps/maxtheta 180. deg
+/gate/source/bgam/gps/minphi   0. deg
+/gate/source/bgam/gps/maxphi   360. deg
+#/gate/source/bgam/dump 3                         # i think density dump of the image
+#/gate/source/list
+
+#=====================================================
+# VISUALISATION
+#=====================================================
+/vis/open   OGLSQt #OGLSX               
+/vis/drawVolume
+/vis/scene/add/axes        0 0 0 200 mm
+/vis/viewer/zoom 2
+/vis/viewer/set/rotationStyle freeRotation
+/vis/scene/add/trajectories
+/vis/scene/endOfEventAction  accumulate
+
+#/gate/source/bgam/visualize
+#/vis/modeling/trajectories/create/drawByAttribute
+#/vis/filtering/trajectories/create/attributeFilter
+
+
+#=====================================================
+# START BEAMS : detectors
+#=====================================================
+/gate/random/setEngineName MersenneTwister
+/gate/random/setEngineSeed auto
+/gate/application/noGlobalOutput
+/gate/application/setTotalNumberOfPrimaries 10.
+/gate/application/start
+
+
+
+
